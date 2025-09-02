@@ -3,9 +3,13 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define STRIDE     (64 / sizeof(void *))        // stride = 1 linha de cache
-#define CACHE_SIZE_L1 (16 * 1024 / sizeof(void *)) // ~16KB, cabe no L1 (32KB típico)
-#define NUM_BLOCKS_L1  (CACHE_SIZE_L1 / STRIDE)
+#define STRIDE     	(64 / sizeof(void *))        	// stride = 1 linha de cache
+
+#define CACHE_SIZE_L1 	(16 * 1024 / sizeof(void *)) 	// ~16KB, cabe no L1 (32KB típico)
+#define NUM_BLOCKS_L1  	(CACHE_SIZE_L1 / STRIDE)
+
+#define CACHE_SIZE_L2 	(512 * 1024 / sizeof(void *))	// ~512KB, cabe no L1 (32KB típico)
+#define NUM_BLOCKS_L2  	(CACHE_SIZE_L2 / STRIDE)
 
 static void **array_L1;
 
@@ -23,7 +27,14 @@ void init_array_L1() {
     }
 }
 
-int L1_cache_latency_test() {
+void init_array_L2() {
+    // pointer chasing: cada posição aponta para a próxima (stride de 1 linha de cache)
+    for (size_t i = 0; i < CACHE_SIZE_L2; i += STRIDE) {
+        array_L2[i] = &array_L2[(i + STRIDE) % CACHE_SIZE_L2];
+    }
+}
+
+int L2_cache_latency_test() {
     array_L1 = aligned_alloc(64, CACHE_SIZE_L1 * sizeof(void *));
     uint64_t latency[NUM_BLOCKS_L1];
     double block;
@@ -58,11 +69,44 @@ int L1_cache_latency_test() {
     return 0;
 }
 
+int L3_cache_latency_test() {
+    array_L2 = aligned_alloc(64, CACHE_SIZE_L2 * sizeof(void *));
+    uint64_t latency[NUM_BLOCKS_L1];
+    double block;
+    
+    if (!array_L2) { perror("malloc"); return 1; }
+
+    init_array_L2();
+
+    void * volatile *p = &array_L2[0];
+    uint64_t start, end;
+
+    // aquecer o cache
+    for (size_t i = 0; i < CACHE_SIZE_L2; i += STRIDE) {
+        p = (void **)*p;
+    }
+
+    // medir latência
+    for (int i = 0; i < NUM_BLOCKS_L2; i++) {
+	start = rdtsc();						 // trocar pelo rdtscP
+        p = (void **)*p;
+        end = rdtsc();
+        latency[i] = end-start;                  // Pode estar interferindo na medição. colocar mfence antes do start
+    }
+
+    for (int i = 0; i < NUM_BLOCKS_L1; i++) {;
+    //if(cycles >= 7){
+    printf("Victim acessed Block # %u with latency %lu cycles\n", i, latency[i]);		
+    }
+
+    free(array_L2);
+    return 0;
+}
+
 int main() {
-	int a;
-	
-	a = 0;
-	a = L1_cache_latency_test();
-	return a;
+	L2_cache_latency_test();
+	L3_cache_latency_test();
+
+	return 0;
 	
 }

@@ -1,3 +1,13 @@
+/*
+ * Prefetching 		-> ponter chasing
+ * code optimization 	-> volatile variables
+ * out-of-order		-> memory fencing instructions CPUID
+ * core-migrating       -> pin code to a given core
+ */
+
+
+
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>

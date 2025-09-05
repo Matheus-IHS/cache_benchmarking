@@ -47,8 +47,6 @@ void init_array_L2() {
 
 int L2_cache_latency_test() {
     array_L1 = aligned_alloc(64, CACHE_SIZE_L1 * sizeof(void *));
-    uint64_t latency[NUM_BLOCKS_L1];
-    double block;
     
     if (!array_L1) { perror("malloc"); return 1; }
 
@@ -63,16 +61,13 @@ int L2_cache_latency_test() {
     }
 
     // medir latência
+    start = rdtsc();						 // trocar pelo rdtscP
     for (int i = 0; i < NUM_BLOCKS_L1; i++) {
-	start = rdtsc();						 // trocar pelo rdtscP
         p = (void **)*p;
-        end = rdtsc();
-        latency[i] = end-start;                  // Pode estar interferindo na medição. colocar mfence antes do start
     }
+    end = rdtsc();
 
-    uint64_t total_time = 0;
-    for(int i = 0; i < NUM_BLOCKS_L1; i++) {total_time = total_time + latency[i];}
-    uint64_t cycles = total_time/NUM_BLOCKS_L1; 
+    uint64_t cycles = (end - start)/NUM_BLOCKS_L1; 
     printf("L2 with latency %lu cycles\n", cycles);		
 
     free(array_L1);
@@ -81,8 +76,6 @@ int L2_cache_latency_test() {
 
 int L3_cache_latency_test() {
     array_L2 = aligned_alloc(64, CACHE_SIZE_L2 * sizeof(void *));
-    uint64_t latency[NUM_BLOCKS_L2];
-    double block;
     
     if (!array_L2) { perror("malloc"); return 1; }
 
@@ -97,16 +90,13 @@ int L3_cache_latency_test() {
     }
 
     // medir latência
+    start = rdtsc();						 // trocar pelo rdtscP
     for (int i = 0; i < NUM_BLOCKS_L2; i++) {
-	start = rdtsc();						 // trocar pelo rdtscP
         p = (void **)*p;
-        end = rdtsc();
-        latency[i] = end-start;                  // Pode estar interferindo na medição. colocar mfence antes do start
     }
+    end = rdtsc();
 
-    uint64_t total_time = 0;
-    for(int i = 0; i < NUM_BLOCKS_L2; i++) {total_time = total_time + latency[i];}
-    uint64_t cycles = total_time/NUM_BLOCKS_L2; 
+    uint64_t cycles = (end-start)/NUM_BLOCKS_L2; 
     printf("L3 with latency %lu cycles\n", cycles);		
 
     free(array_L2);

@@ -73,7 +73,7 @@ int L2_cache_latency_test() {
     uint64_t total_time = 0;
     for(int i = 0; i < NUM_BLOCKS_L1; i++) {total_time = total_time + latency[i];}
     uint64_t cycles = total_time/NUM_BLOCKS_L1; 
-    printf("L3 with latency %lu cycles\n", cycles);		
+    printf("L2 with latency %lu cycles\n", cycles);		
 
     free(array_L1);
     return 0;

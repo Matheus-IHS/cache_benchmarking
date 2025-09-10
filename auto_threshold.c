@@ -52,7 +52,7 @@ void get_latency_l1(){
     
     unsigned int total_latency = 0;
     for (int i = 0; i < L1_CACHE_SIZE; i++){total_latency += latency[i];}
-    printf("cycles = %d \n", (total_latency)/L1_CACHE_SIZE);
+    printf("cycles = %f \n", ((float)(total_latency))/((float)L1_CACHE_SIZE));
 }
 
 

@@ -40,19 +40,48 @@ static inline uint64_t  probe_native(volatile uint8_t *adrs){
     return time;
 }
 
+static inline uint64_t  dummy_probe_native(volatile uint8_t *adrs){
+    volatile unsigned long time;
+    asm __volatile__(
+        "    mfence                \n"
+        "    lfence                \n"
+        "    rdtsc                 \n"
+        "    lfence                \n"
+        "    mov %%eax, %%esi      \n"
+        "    lfence                \n"
+        "    rdtsc                 \n"
+        "    sub %%esi, %%eax      \n"
+        "    clflush (%1)          \n"
+        "    mfence                \n"
+        "    lfence                \n"
+        : "=a" (time)
+        : "c" (adrs)
+        : "%esi", "%edx"
+    );
+    return time;
+}
+
 void get_latency_l1(){
     int mix_i;
     volatile uint8_t* addr;
     long long int latency[L1_CACHE_SIZE];
+    long long int latency_dummy[L1_CACHE_SIZE];
 
     for (int i=0; i < L1_CACHE_SIZE; i++){
 	//mix_i = ((i * 167) + 13) % L1_CACHE_SIZE;
         latency[i] = probe_native(&array1[i]); /* MEMORY ACCESS TO TIME */
     }
+    for (int i=0; i < L1_CACHE_SIZE; i++){
+	//mix_i = ((i * 167) + 13) % L1_CACHE_SIZE;
+        latency_dummy[i] = dummy_probe_native(&array1[i]); /* MEMORY ACCESS TO TIME */
+    }
     
     unsigned int total_latency = 0;
+    unsigned int subtracted_total_latency = 0;
     for (int i = 0; i < L1_CACHE_SIZE; i++){total_latency += latency[i];}
+    for (int i = 0; i < L1_CACHE_SIZE; i++){subtracted_total_latency += (latency[i] - latency_dummy[i]);}
     printf("cycles = %f \n", ((float)(total_latency))/((float)L1_CACHE_SIZE));
+    printf("cycles = %f \n", ((float)(subtracted_total_latency))/((float)L1_CACHE_SIZE));
 }
 
 

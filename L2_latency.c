@@ -15,19 +15,33 @@
 
 #define STRIDE     	(64 / sizeof(void *))        	// stride = 1 linha de cache
 
-#define CACHE_SIZE_L1 	(16 * 1024 / sizeof(void *)) 	// ~16KB, cabe no L1 (32KB típico)
+#define CACHE_SIZE_L1 	(48*1024 / sizeof(void *)) 	// ~16KB, cabe no L1 (32KB típico)
 #define NUM_BLOCKS_L1  	(CACHE_SIZE_L1 / STRIDE)
 
-#define CACHE_SIZE_L2 	(512 * 1024 / sizeof(void *))	// ~512KB, cabe no L1 (32KB típico)
+#define CACHE_SIZE_L2 	(1280*1024 / sizeof(void *))	// ~512KB, cabe no L1 (32KB típico)
 #define NUM_BLOCKS_L2  	(CACHE_SIZE_L2 / STRIDE)
 
 static void **array_L1;
 static void **array_L2;
 
 
-static inline uint64_t rdtsc() {
+static inline uint64_t rdtsc_start() {
     unsigned hi, lo;
-    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    __asm__ __volatile__ (
+        "mfence         \n"
+	"lfence         \n"
+        "rdtsc		\n" 
+	: "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static inline uint64_t rdtsc_end() {
+    unsigned hi, lo;
+    __asm__ __volatile__ (
+        "rdtsc		\n"
+	"lfence         \n"
+	"mfence        \n"
+	: "=a"(lo), "=d"(hi));
     return ((uint64_t)hi << 32) | lo;
 }
 
@@ -54,21 +68,21 @@ int L2_cache_latency_test() {
 
     void * volatile *p = &array_L1[0];
     uint64_t start, end;
-
+    
     // aquecer o cache
     for (size_t i = 0; i < CACHE_SIZE_L1; i += STRIDE) {
         p = (void **)*p;
     }
 
     // medir latência
-    start = rdtsc();						 // trocar pelo rdtscP
+    start = rdtsc_start();						 // trocar pelo rdtscP
     for (int i = 0; i < NUM_BLOCKS_L1; i++) {
         p = (void **)*p;
     }
-    end = rdtsc();
-
-    uint64_t cycles = (end - start)/NUM_BLOCKS_L1; 
-    printf("L2 with latency %lu cycles\n", cycles);		
+    end = rdtsc_end();
+    
+    float cycles = (float)(end - start)/(float)NUM_BLOCKS_L1; 
+    printf("L2 with latency %f cycles\n", (cycles));		
 
     free(array_L1);
     return 0;
@@ -90,20 +104,21 @@ int L3_cache_latency_test() {
     }
 
     // medir latência
-    start = rdtsc();						 // trocar pelo rdtscP
+    start = rdtsc_start();						 // trocar pelo rdtscP
     for (int i = 0; i < NUM_BLOCKS_L2; i++) {
         p = (void **)*p;
     }
-    end = rdtsc();
+    end = rdtsc_end();
 
-    uint64_t cycles = (end-start)/NUM_BLOCKS_L2; 
-    printf("L3 with latency %lu cycles\n", cycles);		
+    float cycles = (float)(end-start)/(float)NUM_BLOCKS_L2; 
+    printf("L3 with latency %f cycles\n", cycles);		
 
     free(array_L2);
     return 0;
 }
 
 int main() {
+	printf("sizeof(void *): %ld \n", sizeof(void *));
 	L2_cache_latency_test();
 	L3_cache_latency_test();
 

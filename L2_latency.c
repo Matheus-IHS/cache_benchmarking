@@ -15,10 +15,10 @@
 
 #define STRIDE     	(64 / sizeof(void *))        	// stride = 1 linha de cache
 
-#define CACHE_SIZE_L1 	(48*1024 / sizeof(void *)) 	// ~16KB, cabe no L1 (32KB típico)
+#define CACHE_SIZE_L1 	(48   * 1024 / sizeof(void *)) 	// ~16KB, cabe no L1 (32KB típico)
 #define NUM_BLOCKS_L1  	(CACHE_SIZE_L1 / STRIDE)
 
-#define CACHE_SIZE_L2 	(1280*1024 / sizeof(void *))	// ~512KB, cabe no L1 (32KB típico)
+#define CACHE_SIZE_L2 	(1280 * 1024 / sizeof(void *))	// ~512KB, cabe no L1 (32KB típico)
 #define NUM_BLOCKS_L2  	(CACHE_SIZE_L2 / STRIDE)
 
 static void **array_L1;
@@ -49,6 +49,10 @@ void init_array_L1() {
     // pointer chasing: cada posição aponta para a próxima (stride de 1 linha de cache)
     for (size_t i = 0; i < CACHE_SIZE_L1; i += STRIDE) {
         array_L1[i] = &array_L1[(i + STRIDE) % CACHE_SIZE_L1];
+        __asm__ __volatile__ (
+            "clflush  (%0)         \n"
+     	    :: "r" (&array_L1[i])
+        ); 
     }
 }
 
@@ -56,6 +60,10 @@ void init_array_L2() {
     // pointer chasing: cada posição aponta para a próxima (stride de 1 linha de cache)
     for (size_t i = 0; i < CACHE_SIZE_L2; i += STRIDE) {
         array_L2[i] = &array_L2[(i + STRIDE) % CACHE_SIZE_L2];
+        __asm__ __volatile__ (
+            "clflush  (%0)         \n"
+     	    :: "r" (&array_L2[i])
+        ); 
     }
 }
 

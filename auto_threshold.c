@@ -10,7 +10,7 @@
 #define L2_CACHE_SIZE 1280*1024
 #define L3_CACHE_SIZE 8192*1024
 
-uint8_t array1[4*L1_CACHE_SIZE];
+uint8_t array1[L1_CACHE_SIZE];
 
 static inline uint64_t rdtsc() {
     unsigned hi, lo;
@@ -79,6 +79,7 @@ void get_latency_l1(){
     volatile uint8_t* addr;
     int latency[NUM_MEDICOES];
     int latency_dummy[NUM_MEDICOES];
+    FILE *LATENCY_FILE;
 
     for (unsigned int i=0; i < NUM_MEDICOES; i++){
 	//mix_i = ((i * 167) + 13) % L1_CACHE_SIZE;
@@ -96,30 +97,48 @@ void get_latency_l1(){
     for (long int i = 0; i < NUM_MEDICOES; i++){subtracted_total_latency += max(latency[i] - latency_dummy[i], 0);}
     printf("cycles = %f \n", ((float)(total_latency))/((float)NUM_MEDICOES));
     printf("cycles = %f \n", ((float)(subtracted_total_latency))/((float)NUM_MEDICOES));
+    
+    LATENCY_FILE = fopen("log_auto_threshold_l1", "w");
+    for(int i = 0; i < NUM_MEDICOES; i++){
+        fprintf(LATENCY_FILE, "%i\n", max(latency[i] - latency_dummy[i],0));
+    }
+    fclose(LATENCY_FILE);
 }
 
 void get_latency_l2(){
-   int NUM_MEDICOES = 1000;
-   volatile uint8_t lixo;
-   int total_latency = 0;
-   int total_latency_dummy = 0; 
-   int t1, t2 = 0;
-
-   for(int i = 0; i < NUM_MEDICOES; i++){
-       lixo = array1[0];
-       for(int j = 0; j < L1_CACHE_SIZE/64; j++){
-           lixo = array1[j*64];
-       }
-       t1 = probe_native(&array1[0]);
-       t2 = dummy_probe_native();
-       total_latency += t1;
-       total_latency_dummy += t2;
-       //printf("t1 = %i, t2 = %i, t1 - t2: %i \n", t1, t2, t1 - t2);
-   }
-   printf("%i", lixo);
-   printf("cycles = %f \n", ((float)(total_latency))/((float)NUM_MEDICOES));
-   printf("cycles = %f \n", ((float)(total_latency - total_latency_dummy))/((float)NUM_MEDICOES));
+    int NUM_MEDICOES = 1000;
+    volatile uint8_t lixo;
+    int latency[NUM_MEDICOES];
+    int latency_dummy[NUM_MEDICOES];
+    int total_latency = 0;
+    int total_latency_dummy = 0;
+    int subtracted_total_latency = 0;
+    int t1, t2 = 0;
+    FILE *LATENCY_FILE;
+ 
+    for(int i = 0; i < NUM_MEDICOES; i++){
+        lixo = array1[0];
+        for(int j = 0; j < L1_CACHE_SIZE/64; j++){
+            lixo = array1[j*64];
+        }
+        t1 = probe_native(&array1[0]);
+        t2 = dummy_probe_native();
+        latency[i] = t1;
+        latency_dummy[i] = t2;
+        printf("t1 = %i, t2 = %i, t1 - t2: %i \n", t1, t2, max(t1 - t2,0));
+    }
+    for (long int i = 0; i < NUM_MEDICOES; i++){total_latency += latency[i];}
+    for (long int i = 0; i < NUM_MEDICOES; i++){subtracted_total_latency += max(latency[i] - latency_dummy[i], 0);}
+    printf("cycles = %f \n", ((float)(total_latency))/((float)NUM_MEDICOES));
+    printf("cycles = %f \n", ((float)(subtracted_total_latency))/((float)NUM_MEDICOES));
+    
+    LATENCY_FILE = fopen("log_auto_threshold_l2", "w");
+    for(int i = 0; i < NUM_MEDICOES; i++){
+        fprintf(LATENCY_FILE, "%i\n", max(latency[i] - latency_dummy[i],0));
+    }
+    fclose(LATENCY_FILE);
 }
+
 
 int main(){
     get_latency_l1();

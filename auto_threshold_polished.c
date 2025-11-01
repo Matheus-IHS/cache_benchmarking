@@ -7,7 +7,7 @@
 
 #define BLOCK 64
 
-#define L1_CACHE_SIZE 48*1024          /*511: limite máximo até segfault*/
+#define L1_CACHE_SIZE 48*1024
 #define L2_CACHE_SIZE 1280*1024
 #define L3_CACHE_SIZE 8192*1024
 
@@ -20,7 +20,7 @@ static inline uint64_t rdtsc() {
     return ((uint64_t)hi << 32) | lo;
 }
 
-static inline uint64_t  probe_native(volatile uint8_t *adrs){
+static inline uint64_t probe_native(volatile uint8_t *adrs){
     volatile unsigned long time;
     asm __volatile__(
         "    mfence                \n"
@@ -134,10 +134,10 @@ void get_latency_l2(){
     int NUM_MEDICOES = 500000;
     volatile uint8_t lixo;
     unsigned int latency[NUM_MEDICOES], latency_dummy[NUM_MEDICOES];
-    int total_latency = 0;
-    int total_latency_dummy = 0;
-    int subtracted_total_latency = 0;
-    int t1, t2 = 0;
+    unsigned int total_latency = 0;
+    unsigned int total_latency_dummy = 0;
+    unsigned int subtracted_total_latency = 0;
+    unsigned int t1, t2 = 0;
     FILE *LATENCY_FILE;
 
     long unsigned int num_lines = (2*L1_CACHE_SIZE) / 64;
@@ -148,12 +148,10 @@ void get_latency_l2(){
     for(int i = 0; i < NUM_MEDICOES; i++){
         lixo = array2[0];
         for(int j = 0; j < (2*L1_CACHE_SIZE)/64; j++){
-            lixo = array1[j*64];
+            lixo = array1[indices[j]*64];
         }
-        t1 = probe_native(&array2[0]);
-        t2 = dummy_probe_native();
-        latency[i] = t1;
-        latency_dummy[i] = t2;
+        latency[i] = probe_native(&array2[0]);
+        latency_dummy[i] = dummy_probe_native();
     }
 
     for (long int i = 0; i < NUM_MEDICOES; i++){total_latency += latency[i];}
@@ -171,12 +169,12 @@ void get_latency_l2(){
 void get_latency_l3(){
     int NUM_MEDICOES = 500000;
     volatile uint8_t lixo;
-    long unsigned int latency[NUM_MEDICOES];
-    long unsigned int latency_dummy[NUM_MEDICOES];
-    long unsigned int total_latency = 0;
-    long unsigned int total_latency_dummy = 0;
-    long unsigned int subtracted_total_latency = 0;
-    long unsigned int t1, t2 = 0;
+    unsigned int latency[NUM_MEDICOES];
+    unsigned int latency_dummy[NUM_MEDICOES];
+    unsigned int total_latency = 0;
+    unsigned int total_latency_dummy = 0;
+    unsigned int subtracted_total_latency = 0;
+    unsigned int t1, t2 = 0;
     FILE *LATENCY_FILE;
     
     long unsigned int num_lines = (2*L2_CACHE_SIZE) / 64;
@@ -186,13 +184,11 @@ void get_latency_l3(){
  
     for(int i = 0; i < NUM_MEDICOES; i++){
         lixo = array1[0];
-        for(int j = 0; j < (2*L2_CACHE_SIZE)/64; j++){
-            lixo = array2[j*64];
+        for(int j = 0; j < (L2_CACHE_SIZE)/64; j++){
+            lixo = array2[indices[j]*64];
         }
-        t1 = probe_native(&array1[0]);
-        t2 = dummy_probe_native();
-        latency[i] = t1;
-        latency_dummy[i] = t2;
+        latency[i] = probe_native(&array1[0]);
+        latency_dummy[i] = dummy_probe_native();
     }
     for (long int i = 0; i < NUM_MEDICOES; i++){total_latency += latency[i];}
     for (long int i = 0; i < NUM_MEDICOES; i++){subtracted_total_latency += max(latency[i] - latency_dummy[i], 0);}

@@ -157,6 +157,8 @@ void get_latency_l3(){
     unsigned subtracted_total_latency = 0;
     unsigned t1, t2 = 0;
     FILE *LATENCY_FILE;
+    
+    for(int i = 0; i < NUM_MEDICOES; i++){
         lixo = array1[0];
         for(int j = 0; j < (2*L2_CACHE_SIZE)/64; j++){
             lixo = array2[j*64];

@@ -14,13 +14,8 @@
 uint8_t array1[L1_CACHE_SIZE*2];
 uint8_t array2[2*L2_CACHE_SIZE];
 
-static inline uint64_t rdtsc() {
-    unsigned hi, lo;
-    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((uint64_t)hi << 32) | lo;
-}
 
-static inline uint64_t probe_native(volatile uint8_t *adrs){
+static inline int probe_native(volatile uint8_t *adrs){
     volatile unsigned long time;
     asm __volatile__(
         "    mfence                \n"
@@ -41,7 +36,7 @@ static inline uint64_t probe_native(volatile uint8_t *adrs){
     return time;
 }
 
-static inline uint64_t  dummy_probe_native(){
+static inline int  dummy_probe_native(){
     volatile unsigned long time;
     asm __volatile__(
         "    mfence                \n"
@@ -60,7 +55,7 @@ static inline uint64_t  dummy_probe_native(){
     return time;
 }
 
-unsigned int max(long long int a, long long int b){
+int max(int a, int b){
     if(a>b){
         return a;
     }
@@ -70,18 +65,18 @@ unsigned int max(long long int a, long long int b){
 }
 
 void fill_array_l1(uint8_t *array){
-    for(unsigned int i = 0; i < (2*L1_CACHE_SIZE)/(4*1024); i++){
+    for(int i = 0; i < (2*L1_CACHE_SIZE)/(4*1024); i++){
         array[i*(4*1024)] = "m";
     }
 }
 
 void fill_array_l2(uint8_t *array){
-    for(unsigned int i = 0; i < (2*L2_CACHE_SIZE)/(4*1024); i++){
+    for(int i = 0; i < (2*L2_CACHE_SIZE)/(4*1024); i++){
         array[i*(4*1024)] = "b";
     }
 }
 
-void shuffle(long unsigned int *array, size_t n)
+void shuffle(int *array, size_t n)
 {
     if (n > 1)
     {
@@ -96,22 +91,14 @@ void shuffle(long unsigned int *array, size_t n)
     }
 }
 
-void stall_cycles(uint64_t cycles) {
-    uint64_t start = rdtsc();
-    uint64_t now;
-    do {
-        now = rdtsc();
-    } while (now - start < cycles);
-}
-
 void get_latency_l1(){
     int mix_i;
     int NUM_MEDICOES = 500000;
     volatile uint8_t* addr;
-    unsigned int latency[NUM_MEDICOES], latency_dummy[NUM_MEDICOES];
+    unsigned latency[NUM_MEDICOES], latency_dummy[NUM_MEDICOES];
     FILE *LATENCY_FILE;
 
-    for (unsigned int i=0; i < NUM_MEDICOES; i++){
+    for (int i=0; i < NUM_MEDICOES; i++){
         latency[i] = probe_native(&array1[0]);
         latency_dummy[i] = dummy_probe_native();
     }
@@ -133,22 +120,16 @@ void get_latency_l1(){
 void get_latency_l2(){
     int NUM_MEDICOES = 500000;
     volatile uint8_t lixo;
-    unsigned int latency[NUM_MEDICOES], latency_dummy[NUM_MEDICOES];
-    unsigned int total_latency = 0;
-    unsigned int total_latency_dummy = 0;
-    unsigned int subtracted_total_latency = 0;
-    unsigned int t1, t2 = 0;
+    unsigned latency[NUM_MEDICOES], latency_dummy[NUM_MEDICOES];
+    unsigned total_latency = 0;
+    unsigned total_latency_dummy = 0;
+    unsigned subtracted_total_latency = 0;
     FILE *LATENCY_FILE;
 
-    long unsigned int num_lines = (2*L1_CACHE_SIZE) / 64;
-    long unsigned int indices[num_lines];
-    for (long unsigned int i = 0; i < num_lines; i++) indices[i] = i;
-    shuffle(indices, num_lines);
- 
     for(int i = 0; i < NUM_MEDICOES; i++){
         lixo = array2[0];
         for(int j = 0; j < (2*L1_CACHE_SIZE)/64; j++){
-            lixo = array1[indices[j]*64];
+            lixo = array1[j*64];
         }
         latency[i] = probe_native(&array2[0]);
         latency_dummy[i] = dummy_probe_native();
@@ -169,23 +150,16 @@ void get_latency_l2(){
 void get_latency_l3(){
     int NUM_MEDICOES = 500000;
     volatile uint8_t lixo;
-    unsigned int latency[NUM_MEDICOES];
-    unsigned int latency_dummy[NUM_MEDICOES];
-    unsigned int total_latency = 0;
-    unsigned int total_latency_dummy = 0;
-    unsigned int subtracted_total_latency = 0;
-    unsigned int t1, t2 = 0;
+    unsigned latency[NUM_MEDICOES];
+    unsigned latency_dummy[NUM_MEDICOES];
+    unsigned total_latency = 0;
+    unsigned total_latency_dummy = 0;
+    unsigned subtracted_total_latency = 0;
+    unsigned t1, t2 = 0;
     FILE *LATENCY_FILE;
-    
-    long unsigned int num_lines = (2*L2_CACHE_SIZE) / 64;
-    long unsigned int indices[num_lines];
-    for (long unsigned int i = 0; i < num_lines; i++) indices[i] = i;
-    shuffle(indices, num_lines);
- 
-    for(int i = 0; i < NUM_MEDICOES; i++){
         lixo = array1[0];
-        for(int j = 0; j < (L2_CACHE_SIZE)/64; j++){
-            lixo = array2[indices[j]*64];
+        for(int j = 0; j < (2*L2_CACHE_SIZE)/64; j++){
+            lixo = array2[j*64];
         }
         latency[i] = probe_native(&array1[0]);
         latency_dummy[i] = dummy_probe_native();
@@ -204,7 +178,7 @@ void get_latency_l3(){
 
 
 int main(){
-    printf("long unsigned int: %lu \n", sizeof(long unsigned int));
+    printf("long int: %lu \n", sizeof(long int));
     get_latency_l1();
     fill_array_l1(array1);
     get_latency_l2();

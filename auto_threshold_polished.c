@@ -11,7 +11,7 @@
 #define L2_CACHE_SIZE 1280*1024
 #define L3_CACHE_SIZE 8192*1024
 
-uint8_t array1[L1_CACHE_SIZE*2];
+uint8_t array1[2*L1_CACHE_SIZE];
 uint8_t array2[2*L2_CACHE_SIZE];
 
 
@@ -91,7 +91,7 @@ void shuffle(int *array, size_t n)
     }
 }
 
-void get_latency_l1(){
+volatile void get_latency_l1(){
     int mix_i;
     int NUM_MEDICOES = 500000;
     volatile uint8_t* addr;
@@ -117,10 +117,10 @@ void get_latency_l1(){
     fclose(LATENCY_FILE);
 }
 
-void get_latency_l2(int num_medicoes, uint8_t *cache_filling_array, int array_size, char *log_file_name){
+volatile void get_latency_l2(int num_medicoes, uint8_t *cache_filling_array, int array_size, char *log_file_name){
     volatile uint8_t lixo;
-    uint8_t probe_address[1];
-    int latency[num_medicoes], latency_dummy[num_medicoes];
+    volatile uint8_t probe_address[1];
+    volatile int latency[num_medicoes], latency_dummy[num_medicoes];
     int total_latency = 0;
     int total_latency_dummy = 0;
     int subtracted_total_latency = 0;
@@ -183,7 +183,7 @@ int main(){
     printf("long int: %lu \n", sizeof(long int));
     get_latency_l1();
     fill_array_l1(array1);
-    get_latency_l2(500000, array1, 2*L1_CACHE_SIZE, "log_auto_threshold_l2");
+    get_latency_l2(10000, array1, 2*L1_CACHE_SIZE, "log_auto_threshold_l2");
     fill_array_l2(array2);
-    get_latency_l2(500000, array2, 2*L2_CACHE_SIZE, "log_auto_threshold_l3");
+    get_latency_l2(10000, array2, 2*L2_CACHE_SIZE, "log_auto_threshold_l3");
 }

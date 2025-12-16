@@ -1,5 +1,5 @@
-
 #include <stdio.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
@@ -91,6 +91,52 @@ void shuffle(int *array, size_t n)
     }
 }
 
+float get_cpu_nominal_freq() {
+    FILE *fp;
+    char buffer[256];
+    char *line;
+    float frequency = 0.0;
+
+    fp = fopen("/proc/cpuinfo", "r");
+    if (fp == NULL) {
+        perror("Error opening /proc/cpuinfo");
+        exit(1);
+    }
+
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        line = strstr(buffer, "@");
+	if (line != NULL) {
+            sscanf(line, "@%fGHz", &frequency);
+            printf("Nominal CPU Frequency: %.2f GHz\n", frequency);
+            break;
+        }
+    }
+
+    fclose(fp);
+    return frequency;
+}
+
+
+static long get_sysfs_freq(int core) {
+    char path[128];
+    snprintf(path, sizeof(path),
+             "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", core);
+
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        // try cpuinfo_cur_freq
+        snprintf(path, sizeof(path),
+                 "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_cur_freq", core);
+        f = fopen(path, "r");
+        if (!f) return -1;
+    }
+
+    long khz;
+    if (fscanf(f, "%ld", &khz) != 1) khz = -1;
+    fclose(f);
+    return khz;
+}
+
 volatile void get_latency_l1(){
     int mix_i;
     int NUM_MEDICOES = 500000;
@@ -124,7 +170,12 @@ volatile void get_latency_l2(int num_medicoes, uint8_t *cache_filling_array, int
     int total_latency = 0;
     int total_latency_dummy = 0;
     int subtracted_total_latency = 0;
+    float actual_frequency;
+    float nominal_frequency;
     FILE *LATENCY_FILE;
+
+    actual_frequency  = get_sysfs_freq(sched_getcpu())/1000;
+    nominal_frequency = get_cpu_nominal_freq()*1000;
 
     for(int i = 0; i < num_medicoes; i++){
         lixo = probe_address[0];
@@ -133,6 +184,8 @@ volatile void get_latency_l2(int num_medicoes, uint8_t *cache_filling_array, int
         }
         latency[i] = probe_native(&probe_address[0]);
         latency_dummy[i] = dummy_probe_native();
+        latency[i] = latency[i]*actual_frequency/nominal_frequency;
+        latency_dummy[i] = latency_dummy[i]*actual_frequency/nominal_frequency;
     }
 
     for (long int i = 0; i < num_medicoes; i++){total_latency += latency[i];}
@@ -180,7 +233,7 @@ void get_latency_l3(){
 
 
 int main(){
-    printf("long int: %lu \n", sizeof(long int));
+    
     get_latency_l1();
     fill_array_l1(array1);
     get_latency_l2(10000, array1, 2*L1_CACHE_SIZE, "log_auto_threshold_l2");

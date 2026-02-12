@@ -190,8 +190,8 @@ volatile void get_latency_l2(int num_medicoes, uint8_t *cache_filling_array, int
 
     for (long int i = 0; i < num_medicoes; i++){total_latency += latency[i];}
     for (long int i = 0; i < num_medicoes; i++){subtracted_total_latency += max(latency[i] - latency_dummy[i], 0);}
-    printf("cycles = %f \n", ((float)(total_latency))/((float)num_medicoes));
-    printf("cycles = %f \n", ((float)(subtracted_total_latency))/((float)num_medicoes));
+    printf("cycles = %.1f \n", ((float)(total_latency))/((float)num_medicoes));
+    printf("cycles = %.1f \n", ((float)(subtracted_total_latency))/((float)num_medicoes));
     
     LATENCY_FILE = fopen(log_file_name, "w");
     for(int i = 0; i < num_medicoes; i++){
@@ -234,9 +234,9 @@ void get_latency_l3(){
 
 int main(){
     
-    get_latency_l1();
-    fill_array_l1(array1);
+    get_latency_l2(10000, array1, 0, "log_auto_threshold_l1");
+    //fill_array_l1(array1);
     get_latency_l2(10000, array1, 2*L1_CACHE_SIZE, "log_auto_threshold_l2");
-    fill_array_l2(array2);
+    //fill_array_l2(array2);
     get_latency_l2(10000, array2, 2*L2_CACHE_SIZE, "log_auto_threshold_l3");
 }
